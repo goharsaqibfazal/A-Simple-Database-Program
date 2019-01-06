@@ -1,0 +1,255 @@
+/*
+ ============================================================================
+ Name        : database.c
+ Author      : Gohar Saqib Fazal
+ Student ID  : 260840565
+ Description : This is a simple database program that makes use of two binary trees
+ for record storage.
+ ============================================================================
+ */
+//defining the libraries being made use of in the following program
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+//using the predecessor to define constants that will not change throughout the course of the program.
+#define MAXLEN 100
+
+//initializing the marker variable that is used in the command line interpreter to print errors if the input does not match the data for searching purposes.
+int marker =0;
+
+//creating a structure named StudentRecord. The members of the structure will hold all the data for the binary tree.
+struct StudentRecord {
+
+	char first[MAXLEN];
+	char last[MAXLEN];
+	int ID;
+	int marks;
+	struct StudentRecord *left;
+	struct StudentRecord *right;
+
+};
+
+//The addNode function makes the nodes for the B-Trees. The type parameter allows for two B-Trees with different data inputs to be created.
+void addNode(struct StudentRecord** root, struct StudentRecord* input, int type)
+{
+	//this is used for exception handling with null roots
+	if ((*root) == NULL){
+		(*root) = (struct StudentRecord*)malloc(sizeof(struct StudentRecord));//The malloc function returns a pointer to a newly allocated block size bytes long, or a null pointer if the block could not be allocated.
+		(*root)->ID = input -> ID;
+		(*root)->marks = input -> marks;
+		strcpy((*root)-> first, input->first);
+		strcpy((*root) -> last, input->last);
+		(*root)-> left = NULL;
+		(*root)-> right = NULL;
+	}
+	else {
+		//add the nodes for the case where the BTree is constructed using IDs
+		if(type ==1){
+			if(input->ID < (**root).ID){
+				addNode(&((*root)->left), input, type);
+			}
+			else{
+				addNode(&((*root)->right), input, type);
+			}
+		}
+
+		else{
+			//add the nodes for the case where the BTree is constructed using Last Names.
+			if(strcasecmp(input->last, (*root)->last) < 0){
+				addNode(&((*root)->left), input, type);
+			}
+			else{
+				addNode(&((*root)->right), input, type);
+			}
+		}
+	}
+}
+//traverses the ID tree and prints the data out on the screen in terms of ascending order of IDs.
+void traverseID(struct StudentRecord* root){
+
+	if(root->left != NULL){
+		traverseID(root->left);
+	}
+
+	printf("%-10s%-10s%10d%10d\n", root->first, root->last, root->ID, root->marks);
+
+	if(root->right != NULL){
+		traverseID(root->right);
+	}
+}
+//traverses the ID tree and prints the data out on the screen in terms of alphabetical order of last names.
+void traverseLastNames(struct StudentRecord* root){
+
+	if(root->left != NULL){
+		traverseLastNames(root->left);
+	}
+
+	printf("%-10s%-10s%10d%10d\n", root->first, root->last, root->ID, root->marks);
+
+	if(root->right != NULL){
+		traverseLastNames(root->right);
+	}
+}
+//searches the B-Tree for the last name being requested and prints the whole data for that last name on the terminal.
+void searchLastNames(struct StudentRecord* root, char *str){
+
+	if(root->left != NULL){
+		searchLastNames(root->left,str);
+	}
+
+	if(!strcasecmp(str, root->last)){
+		marker=1;
+		printf("Student Name: %s %s\n",root->first, root->last);
+		printf("Student ID: %d\n", root->ID);
+		printf("Total Grade: %d\n", root->marks);
+	}
+
+	if(root->right != NULL){
+		searchLastNames(root->right, str);
+	}
+}
+//searches the B-Tree for the ID being requested and prints the whole data for that ID on the terminal.
+void searchID(struct StudentRecord* root, int id){
+
+	if(root->left != NULL){
+		searchID(root->left,id);
+	}
+
+	if(id == root->ID){
+		marker=1;
+		printf("Student Name: %s %s\n",root->first, root->last);
+		printf("Student ID: %d\n", root->ID);
+		printf("Total Grade: %d\n", root->marks);
+	}
+
+	if(root->right != NULL){
+		searchID(root->right, id);
+	}
+}
+
+int main(int arg, char* argv[]){
+
+	//declaring the variables being used in the main function
+	struct StudentRecord data, *rootName, *rootID;
+	FILE *NamesIDs;
+	FILE *marks;
+	//printing lines to make the output similar to what is being given in the assignment
+	printf("Building database...\n");
+	printf("Finished...\n");
+
+	//opens Names IDs file and prints an error if the file doesn't open
+	if((NamesIDs = fopen(argv[1], "r")) == NULL){
+		printf("Can't open %s\n", argv[1]);
+		return -1;
+	}
+
+	//opens marks file and prints an error if the file doesn't open
+	if((marks = fopen(argv[2], "r")) == NULL){
+		printf("Can't open %s\n", argv[2]);
+		return -2;
+	}
+
+	//initializes two B-Trees
+	rootName=NULL;
+	rootID=NULL;
+	int numrecords=0;
+
+	//scans record into the already defined structure i.e. Student Record
+	while(fscanf(NamesIDs, "%s%s%d", &(data.first[0]), &(data.last[0]), &(data.ID)) != EOF) {
+		fscanf(marks, "%d", &(data.marks));//scams marks into the already defined structure as well
+		numrecords++;
+
+		//copy to B-Tree sorted by last name
+		addNode(&rootName, &data, 2);
+		if(rootName == NULL){
+			printf("Error creating name B-Tree, aborted.\n");
+			return -3;
+		}
+
+		//copy to B-Tree sorted by ID
+		addNode(&rootID, &data, 1);
+		if(rootID == NULL){
+			printf("Error creating ID B-Tree, aborted. \n");
+			return -4;
+		}
+	}
+	//closes the files
+	fclose(NamesIDs);
+	fclose(marks);
+
+	//declaring the variable being used in the command line interpreter
+	char command[MAXLEN];
+	char last_name[MAXLEN];
+	char id_str[MAXLEN];
+	int id;
+
+	//this is an infinite loop which will run till a break statement is issued explicitly
+	while(1){
+
+		marker=0;
+		printf("\n");//Shifts the cursor to the next line to make the code as close as possible to what is being asked in the assignment
+		printf("sdb: ");//prints sdb on the terminal showing that the student database program has started running
+		gets(command);//this scans or reads a line of text from a standard input device and stores it in the string variable which is command in this case
+
+		/*These conditional loops looks for the command being given by the user on the terminal and then implements the respective loop being requested by the user.
+		 *The user can ask for any of the following functions:
+		 *LN: Lists all the records in the database ordered by last name.
+		 *LI: Lists all the records in the database ordered by student ID.
+		 *FN: Prompts for a name and lists the record of the student with the corresponding name.
+		 *FI: Prompts for a ID and lists the record of the student with the corresponding ID.
+		 *HELP or ?: This command prints the list of options available to the user for input and their functions
+		 *Q or QUIT: This command exits the program.
+		 *Any other command: This produces an error.
+		 */
+		//strcasecmp function is used so that the command input is case insensitive
+		if(!strcasecmp(command,"LN")){
+			printf("\n");
+			printf("Student Record Database sorted by Last Name\n");
+			printf("\n");
+			traverseLastNames(rootName);//this calls the traverseLastNames function that traverses the binary tree for the last names in alphabetical order and prints the data on the screen.
+		}
+		else if(!strcasecmp(command, "LI")){
+			printf("\n");
+			printf("Student Record Database sorted by Student ID\n");
+			printf("\n");
+			traverseID(rootID);//this calls the traverseID function that traverses the binary tree for the IDs in ascending order and prints the data on the screen
+		}
+		else if(!strcasecmp(command, "FN")){
+			printf("Enter name to search: ");
+			gets(last_name);//this gets the users input in the form of string which is later checked with the already defined data in the NamesIDs.txt file.
+			searchLastNames(rootName, last_name);//calls the searchLastNames function that traverses the tree for Last Names and looks for the specific node being asked by the user.
+			//if any other input besides the already defined data are used the terminal prints an error on the screen.
+			if(marker==0){
+				printf("There is no student with that name.\n");
+			}
+		}
+		else if(!strcasecmp(command, "FI")){
+			printf("Enter ID to search: ");
+			id = atoi(gets(id_str));//this gets the users input in the form of string which is converted into an integer by the atoi function. The integer value of the ID is later checked with the already defined data in the marks.txt file
+			searchID(rootID, id);//calls the searchID function that traverses the tree for IDs and looks for the specific node being asked by the user
+			//if any other input besides the already defined data are used the terminal prints an error on the screen.
+			if(marker==0){
+				printf("There is no student with that ID.\n");
+			}
+		}
+		else  if((!strcasecmp(command, "HELP")) || (!strcasecmp(command,"?"))){
+			printf("LN: Lists all the records in the database ordered by last name.\n");
+			printf("LI: Lists all the records in the database ordered by student ID.\n");
+			printf("FN: Prompts for a name and lists the record of the student with the corresponding name.\n");
+			printf("FI: Prompts for a ID and lists the record of the student with the corresponding ID.\n");
+			printf("HELP: Prints this list.\n");
+			printf("?: Prints this list.\n");
+			printf("Q: Exits the program.\n");
+
+		}
+		else if((!strcasecmp(command, "Q")) || (!strcasecmp(command, "QUIT"))){
+			printf("Program terminated...\n");
+			return 0;//returning 0 allows the user to exit the program
+
+		}
+		else {
+			printf("Error,invalid command \n");
+		}
+	}
+}
